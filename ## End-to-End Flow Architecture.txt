@@ -1,0 +1,66 @@
+## End-to-End Flow Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        USER INPUT                               │
+│         "Show me last week's chicken sales in Coimbatore"       │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   LLM 1 — NL → SQL                              │
+│                  (Ollama / llama3)                               │
+│                                                                 │
+│  Input:  user query + DB Schema + Few-shot examples             │
+│  Output: SELECT SUM(amount) FROM SALES                          │
+│          WHERE product_name='chicken'                           │
+│          AND city='coimbatore' AND sale_date >= ...             │
+│                                                                 │
+│  File: llm.py → nl_to_sql()                                     │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   ORACLE DATABASE                               │
+│               (oracledb — thin mode)                            │
+│                                                                 │
+│  Executes SQL securely                                          │
+│  Returns: [{"TOTAL_AMOUNT": 875000, "TOTAL_QTY": 320}]         │
+│                                                                 │
+│  File: db.py → run_query()                                      │
+└──────────────┬───────────────────────────┬──────────────────────┘
+               │                           │
+          rows found?                  no rows?
+               │                           │
+               ▼                           ▼
+┌──────────────────────┐     ┌─────────────────────────────────────┐
+│   Skip RAG           │     │        RAG FALLBACK LAYER           │
+│   rag_chunks = []    │     │   (FAISS + sentence-transformers)   │
+│                      │     │                                     │
+│                      │     │  Embeds query → searches FAISS      │
+│                      │     │  Returns top-3 relevant text chunks │
+│                      │     │  (policy docs, FAQs, manuals)       │
+│                      │     │                                     │
+│                      │     │  File: rag.py → retrieve()          │
+└──────────┬───────────┘     └──────────────┬──────────────────────┘
+           │                                │
+           └──────────────┬─────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   LLM 2 — Result → NL                           │
+│                  (Ollama / llama3)                               │
+│                                                                 │
+│  Input:  user query + DB rows + RAG context chunks              │
+│  Output: "Chicken sales in Coimbatore last week                 │
+│           totaled ₹8,75,000 across 320 units."                  │
+│                                                                 │
+│  File: llm.py → result_to_nl()                                  │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     FINAL OUTPUT                                │
+│         Natural language answer shown to the user               │
+└─────────────────────────────────────────────────────────────────┘
+```
