@@ -51,24 +51,11 @@ Tables:
 
 # Few-shot examples for NL→SQL
 FEW_SHOT_EXAMPLES = """
-Q: Show me last week's chicken sales in Coimbatore.
-SQL: SELECT SUM(amount) AS total_amount, SUM(quantity) AS total_qty
-     FROM SALES
-     WHERE LOWER(product_name) = 'chicken'
-       AND LOWER(city) = 'coimbatore'
-       AND sale_date >= TRUNC(SYSDATE, 'IW') - 7
-       AND sale_date <  TRUNC(SYSDATE, 'IW');
-
-Q: Total sales by city this month.
-SQL: SELECT city, SUM(amount) AS total_amount
-     FROM SALES
-     WHERE sale_date >= TRUNC(SYSDATE, 'MM')
-     GROUP BY city
-     ORDER BY total_amount DESC;
 """
 
 FAISS_INDEX_PATH = "faiss_index"
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"  # sentence-transformers model
+
 -------------------------------------------------------------------------
 ---db.py
 import oracledb
@@ -130,6 +117,7 @@ Additional context:
 
 Answer:"""
     return _chat(SQL_TO_NL_MODEL, prompt)
+
 ------------------------------------------------------------------------------------
 ---main.py
 from pipeline import run_pipeline
@@ -149,6 +137,7 @@ if __name__ == "__main__":
             continue
         answer = run_pipeline(query)
         print(f"Bot: {answer}\n")
+
 --------------------------------------------------------------------
 -------pipeline.py
 import re
@@ -178,6 +167,7 @@ def run_pipeline(user_query: str) -> str:
 
     # Step 4: SQL result + RAG context → NL answer
     return result_to_nl(user_query, rows, rag_chunks)
+
 ---------------------------------------------------------------------------
 --rag.py
 import os
@@ -220,6 +210,7 @@ def retrieve(query: str, top_k: int = 3) -> list[str]:
     vec = _embed([query])
     _, indices = index.search(vec, top_k)
     return [docs[i] for i in indices[0] if i < len(docs)]
+
 -------------------------------------------------------------------
 ----requirements.txt
 oracledb>=2.0.0
@@ -227,6 +218,7 @@ requests>=2.31.0
 faiss-cpu>=1.7.4
 sentence-transformers>=2.7.0
 numpy>=1.26.0
+
 ------------------------------------------------------------------------
 ---------test_pipeline.py
 """
@@ -264,8 +256,3 @@ if __name__ == "__main__":
     test_nl_to_sql()
     test_pipeline()
     print("All tests passed.")
-
-----------------------------------------------------------
-
-
-
